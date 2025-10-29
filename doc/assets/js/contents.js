@@ -1,118 +1,270 @@
 (function contentsModule() {
-  const categories = {
+  const CATEGORY_LABELS = {
     immigration: '移民問題',
     special: '番外編',
     music: '音楽',
   };
 
-  const videos = [
-    {
-      id: 'ep-015',
-      title: '地域共生をどう実現するか',
-      description: '現場で活動する支援団体に聞く、多文化共生のヒント。',
-      category: 'immigration',
-      publishedAt: '2024-09-15',
-      duration: '18:42',
-      url: 'https://www.example.com/videos/ep-015',
-      thumbnail: 'assets/img/placeholder.png',
-    },
-    {
-      id: 'ep-014',
-      title: '技能実習制度はどこへ向かうのか',
-      description: '制度改正案を読み解きながら労働環境改善への道を探る。',
-      category: 'immigration',
-      publishedAt: '2024-08-30',
-      duration: '21:05',
-      url: 'https://www.example.com/videos/ep-014',
-      thumbnail: 'assets/img/placeholder.png',
-    },
-    {
-      id: 'sp-003',
-      title: '政策担当者と考える受け入れ枠拡大',
-      description: '行政担当者を招いた公開ラウンドテーブルのダイジェスト。',
-      category: 'special',
-      publishedAt: '2024-08-18',
-      duration: '16:28',
-      url: 'https://www.example.com/videos/sp-003',
-      thumbnail: 'assets/img/placeholder.png',
-    },
-    {
-      id: 'ep-013',
-      title: '若者と考えるボーダーの意味',
-      description: '学生ワークショップの様子を追いながら求められる受け皿を考察。',
-      category: 'immigration',
-      publishedAt: '2024-07-22',
-      duration: '19:13',
-      url: 'https://www.example.com/videos/ep-013',
-      thumbnail: 'assets/img/placeholder.png',
-    },
-    {
-      id: 'mu-002',
-      title: '境界線を越えるメロディー',
-      description: '移民ルーツのアーティストと共に作る新録セッション。',
-      category: 'music',
-      publishedAt: '2024-06-28',
-      duration: '12:52',
-      url: 'https://www.example.com/videos/mu-002',
-      thumbnail: 'assets/img/placeholder.png',
-    },
-    {
-      id: 'ep-012',
-      title: '外国人児童の教育を支える現場',
-      description: '多言語教室の先生たちが語る、教室づくりの工夫。',
-      category: 'immigration',
-      publishedAt: '2024-06-02',
-      duration: '17:04',
-      url: 'https://www.example.com/videos/ep-012',
-      thumbnail: 'assets/img/placeholder.png',
-    },
-    {
-      id: 'sp-002',
-      title: 'コミュニティラジオから広がる支援の輪',
-      description: '多言語放送を続ける市民団体の取り組みを紹介。',
-      category: 'special',
-      publishedAt: '2024-05-16',
-      duration: '14:37',
-      url: 'https://www.example.com/videos/sp-002',
-      thumbnail: 'assets/img/placeholder.png',
-    },
-    {
-      id: 'mu-001',
-      title: '移民ルーツの音楽家クロストーク',
-      description: '異なるバックグラウンドを持つ3人が語る創作の裏側。',
-      category: 'music',
-      publishedAt: '2024-04-05',
-      duration: '24:18',
-      url: 'https://www.example.com/videos/mu-001',
-      thumbnail: 'assets/img/placeholder.png',
-    },
-    {
-      id: 'sp-001',
-      title: '現場リポート：農業と移民労働',
-      description: '長野県の農業現場を巡り、雇用のリアルを伝える特集。',
-      category: 'special',
-      publishedAt: '2024-03-25',
-      duration: '20:11',
-      url: 'https://www.example.com/videos/sp-001',
-      thumbnail: 'assets/img/placeholder.png',
-    },
-  ];
+  const HEADER_ALIASES = {
+    id: ['id', '動画id', 'video id'],
+    title: ['title', 'name', 'タイトル'],
+    description: ['description', '概要', 'details', '説明'],
+    category: ['category', 'カテゴリ', 'カテゴリー', 'ジャンル'],
+    publishedAt: ['published_at', 'publishedat', 'published at', '公開日', '公開日時'],
+    duration: ['duration', 'length', '再生時間', '時間'],
+    url: ['url', 'リンク', 'video url', 'リンクurl', '動画url'],
+    thumbnail: ['thumbnail', 'image', 'サムネイル', 'サムネイルurl'],
+  };
 
-  function sortDescByDate(list) {
-    return [...list].sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+  const state = {
+    videos: [],
+    isLoaded: false,
+    loadError: null,
+  };
+
+  function escapeHtml(value) {
+    if (value === undefined || value === null) {
+      return '';
+    }
+    return String(value).replace(/[&<>"']/g, (char) => {
+      switch (char) {
+        case '&':
+          return '&amp;';
+        case '<':
+          return '&lt;';
+        case '>':
+          return '&gt;';
+        case '"':
+          return '&quot;';
+        case "'":
+          return '&#39;';
+        default:
+          return char;
+      }
+    });
   }
 
-  function getLatest(limit) {
-    return sortDescByDate(videos).slice(0, limit || window.AppConfig?.latestLimit || 6);
+  function renderMessage(container, className, message, detail) {
+    const safeDetail = detail ? `<br><small>${escapeHtml(detail)}</small>` : '';
+    container.innerHTML = `<p class="${className}">${message}${safeDetail}</p>`;
+  }
+
+  function buildProxyUrl(url) {
+    if (!url) return '';
+    if (url.startsWith('https://r.jina.ai/')) {
+      return url;
+    }
+    if (/^https?:\/\//i.test(url)) {
+      return `https://r.jina.ai/${url}`;
+    }
+    return `https://r.jina.ai/https://${url}`;
+  }
+
+  async function fetchCsvText(url) {
+    const attemptFetch = async (target) => {
+      const response = await fetch(target, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return response.text();
+    };
+
+    try {
+      return await attemptFetch(url);
+    } catch (error) {
+      const proxyUrl = buildProxyUrl(url);
+      if (proxyUrl && proxyUrl !== url) {
+        try {
+          return await attemptFetch(proxyUrl);
+        } catch (proxyError) {
+          throw new Error(`${error.message || error} / Proxy: ${proxyError.message || proxyError}`);
+        }
+      }
+      throw error;
+    }
+  }
+
+  function sortDescByDate(list) {
+    return [...list].sort((a, b) => {
+      const aTime = new Date(a.publishedAt).getTime();
+      const bTime = new Date(b.publishedAt).getTime();
+      return (bTime || 0) - (aTime || 0);
+    });
+  }
+
+  function parseCsv(text) {
+    const rows = [];
+    let currentRow = [];
+    let currentValue = '';
+    let insideQuotes = false;
+
+    for (let i = 0; i < text.length; i += 1) {
+      const char = text[i];
+      if (char === '"') {
+        if (insideQuotes && text[i + 1] === '"') {
+          currentValue += '"';
+          i += 1;
+        } else {
+          insideQuotes = !insideQuotes;
+        }
+      } else if (char === ',' && !insideQuotes) {
+        currentRow.push(currentValue);
+        currentValue = '';
+      } else if ((char === '\n' || char === '\r') && !insideQuotes) {
+        if (char === '\r' && text[i + 1] === '\n') {
+          i += 1;
+        }
+        currentRow.push(currentValue);
+        rows.push(currentRow);
+        currentRow = [];
+        currentValue = '';
+      } else {
+        currentValue += char;
+      }
+    }
+
+    if (currentRow.length || currentValue) {
+      currentRow.push(currentValue);
+      rows.push(currentRow);
+    }
+
+    return rows.filter((row) => row.length);
+  }
+
+  function normalizeCategory(rawValue) {
+    if (!rawValue) {
+      return { key: 'immigration', label: CATEGORY_LABELS.immigration };
+    }
+    const trimmed = rawValue.trim();
+    const lower = trimmed.toLowerCase();
+
+    if (lower === 'immigration' || trimmed === '移民問題') {
+      return { key: 'immigration', label: CATEGORY_LABELS.immigration };
+    }
+    if (lower === 'special' || trimmed === '番外編') {
+      return { key: 'special', label: CATEGORY_LABELS.special };
+    }
+    if (lower === 'music' || trimmed === '音楽') {
+      return { key: 'music', label: CATEGORY_LABELS.music };
+    }
+
+    return { key: 'immigration', label: CATEGORY_LABELS.immigration };
+  }
+
+  function pickValueFromRow(rowMap, key) {
+    const aliases = HEADER_ALIASES[key] || [];
+    for (let i = 0; i < aliases.length; i += 1) {
+      const alias = aliases[i].toLowerCase();
+      const value = rowMap[alias];
+      if (value !== undefined && value !== '') {
+        return value;
+      }
+    }
+    return '';
+  }
+
+  function mapRowToObject(headers, row) {
+    const map = {};
+    headers.forEach((header, index) => {
+      if (!header) return;
+      const key = header.trim().toLowerCase();
+      map[key] = (row[index] ?? '').trim();
+    });
+    return map;
+  }
+
+  function createVideoFromRow(rowMap) {
+    const title = pickValueFromRow(rowMap, 'title');
+    const url = pickValueFromRow(rowMap, 'url');
+    if (!title || !url) {
+      return null;
+    }
+
+    const categoryInfo = normalizeCategory(pickValueFromRow(rowMap, 'category'));
+    const description = pickValueFromRow(rowMap, 'description');
+    const publishedAt = pickValueFromRow(rowMap, 'publishedAt');
+    const duration = pickValueFromRow(rowMap, 'duration');
+    const thumbnail = pickValueFromRow(rowMap, 'thumbnail') || 'assets/img/placeholder.png';
+    const idValue = pickValueFromRow(rowMap, 'id');
+    const fallback = `${title}-${publishedAt}-${url}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    return {
+      id: idValue || fallback || `video-${Math.random().toString(36).slice(2)}`,
+      title,
+      description,
+      category: categoryInfo.key,
+      categoryLabel: categoryInfo.label,
+      publishedAt,
+      duration,
+      url,
+      thumbnail,
+    };
+  }
+
+  function convertCsvToVideos(text) {
+    const table = parseCsv(text);
+    if (!table.length) {
+      return [];
+    }
+
+    const headers = table.shift().map((header) => (header || '').trim().toLowerCase());
+    const rows = table.filter((row) => row.some((cell) => (cell || '').trim() !== ''));
+
+    const result = rows
+      .map((row) => mapRowToObject(headers, row))
+      .map((rowMap) => createVideoFromRow(rowMap))
+      .filter((item) => item);
+
+    return sortDescByDate(result);
+  }
+
+  async function loadVideoData() {
+    const csvUrl = window.AppConfig?.videosCsvUrl;
+    if (!csvUrl) {
+      state.isLoaded = true;
+      return;
+    }
+
+    try {
+      const text = await fetchCsvText(csvUrl);
+      state.videos = convertCsvToVideos(text);
+      state.loadError = null;
+    } catch (error) {
+      state.videos = [];
+      state.loadError = error;
+      console.error('動画データの読み込みに失敗しました', error);
+    } finally {
+      state.isLoaded = true;
+    }
   }
 
   function renderLatest() {
     const latestContainer = document.getElementById('latest');
-    if (!latestContainer) return;
+    if (!latestContainer) {
+      return;
+    }
 
-    const items = getLatest(window.AppConfig?.latestLimit);
+    if (!state.isLoaded) {
+      renderMessage(latestContainer, 'loading-state', '読み込み中...');
+      return;
+    }
+
+    if (state.loadError) {
+      renderMessage(
+        latestContainer,
+        'empty-state',
+        '動画情報を取得できませんでした。時間をおいて再度お試しください。',
+        state.loadError?.message,
+      );
+      return;
+    }
+
+    const items = state.videos.slice(0, window.AppConfig?.latestLimit || 6);
     if (!items.length) {
-      latestContainer.innerHTML = '<p class="empty-state">最新動画は準備中です。</p>';
+      renderMessage(latestContainer, 'empty-state', '最新動画は準備中です。');
       return;
     }
 
@@ -145,15 +297,15 @@
     });
 
     const description = window.App.createElement('p', {
-      text: item.description,
+      text: item.description || '説明は準備中です。',
     });
 
     const meta = window.App.createElement('div', {
       className: 'card-meta',
       children: [
-        window.App.createElement('span', { text: categories[item.category] || 'その他' }),
+        window.App.createElement('span', { text: item.categoryLabel || CATEGORY_LABELS[item.category] || 'その他' }),
         window.App.createElement('span', { text: window.App.formatDate(item.publishedAt) }),
-        window.App.createElement('span', { text: `再生時間 ${item.duration}` }),
+        item.duration ? window.App.createElement('span', { text: `再生時間 ${item.duration}` }) : null,
       ],
     });
 
@@ -182,36 +334,46 @@
 
   function initContentsPage() {
     const cardsContainer = document.getElementById('cards');
-    if (!cardsContainer) return;
+    if (!cardsContainer) {
+      return () => {};
+    }
 
     const badge = document.querySelector('[data-count-badge]');
     const tabButtons = document.querySelectorAll('.tab-button');
     const searchInput = document.querySelector('[data-search-input]');
     const sortSelect = document.querySelector('[data-sort-select]');
 
-    let currentTab = 'immigration';
+    let currentTab = document.querySelector('.tab-button.active')?.dataset.category || 'immigration';
     let currentQuery = '';
 
-    function applyFilters() {
-      const filtered = videos.filter((item) => {
-        const matchTab = currentTab === 'all' || item.category === currentTab;
-        const matchQuery = !currentQuery || item.title.toLowerCase().includes(currentQuery);
-        return matchTab && matchQuery;
-      });
-
-      const sorted = sortDescByDate(filtered);
-      updateCards(sorted);
-    }
-
-    function updateCards(list) {
-      cardsContainer.innerHTML = '';
-
-      if (!list.length) {
-        cardsContainer.innerHTML = '<p class="empty-state">条件に合う動画が見つかりませんでした。</p>';
-        if (badge) badge.textContent = '0件';
-        return;
+    const setBadge = (text) => {
+      if (badge) {
+        badge.textContent = text;
       }
+    };
 
+    const renderLoading = () => {
+      renderMessage(cardsContainer, 'loading-state', '読み込み中...');
+      setBadge('--');
+    };
+
+    const renderError = () => {
+      renderMessage(
+        cardsContainer,
+        'empty-state',
+        '動画情報を取得できませんでした。時間をおいて再度お試しください。',
+        state.loadError?.message,
+      );
+      setBadge('0件');
+    };
+
+    const renderEmpty = () => {
+      renderMessage(cardsContainer, 'empty-state', '条件に合う動画が見つかりませんでした。');
+      setBadge('0件');
+    };
+
+    const renderList = (list) => {
+      cardsContainer.innerHTML = '';
       const grid = document.createElement('div');
       grid.className = 'card-grid';
 
@@ -221,15 +383,37 @@
       });
 
       cardsContainer.appendChild(grid);
-      if (badge) badge.textContent = `${list.length}件`;
-    }
+      setBadge(`${list.length}件`);
+    };
+
+    const applyFilters = () => {
+      if (!state.isLoaded) {
+        renderLoading();
+        return;
+      }
+
+      if (state.loadError) {
+        renderError();
+        return;
+      }
+
+      const filtered = state.videos.filter((item) => {
+        const matchTab = !currentTab || item.category === currentTab;
+        const matchQuery = !currentQuery || item.title.toLowerCase().includes(currentQuery);
+        return matchTab && matchQuery;
+      });
+
+      if (!filtered.length) {
+        renderEmpty();
+        return;
+      }
+
+      renderList(filtered);
+    };
 
     tabButtons.forEach((button) => {
-      if (button.classList.contains('active')) {
-        button.setAttribute('aria-selected', 'true');
-      } else {
-        button.setAttribute('aria-selected', 'false');
-      }
+      const isActive = button.classList.contains('active');
+      button.setAttribute('aria-selected', isActive ? 'true' : 'false');
 
       button.addEventListener('click', () => {
         tabButtons.forEach((btn) => {
@@ -238,7 +422,7 @@
         });
         button.classList.add('active');
         button.setAttribute('aria-selected', 'true');
-        currentTab = button.dataset.category;
+        currentTab = button.dataset.category || 'immigration';
         applyFilters();
       });
     });
@@ -255,6 +439,8 @@
     }
 
     applyFilters();
+
+    return applyFilters;
   }
 
   function initContactPage() {
@@ -280,15 +466,27 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    renderLatest();
-    initContentsPage();
+    const refreshContents = initContentsPage();
     initContactPage();
+    renderLatest();
+
+    loadVideoData()
+      .catch(() => {})
+      .finally(() => {
+        renderLatest();
+        refreshContents();
+      });
   });
 
   window.Contents = {
-    categories,
-    videos,
-    getLatest,
+    categories: CATEGORY_LABELS,
+    getLatest(limit) {
+      const size = limit || window.AppConfig?.latestLimit || 6;
+      return state.videos.slice(0, size);
+    },
+    get all() {
+      return state.videos;
+    },
   };
 })();
 

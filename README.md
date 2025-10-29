@@ -34,5 +34,5 @@ doc/
         └── placeholder.png
 ```
 
-コンテンツやフォーム URL を更新する場合は、`doc/assets/js/config.js` および関連するファイルを編集してください。
+動画一覧は Google スプレッドシートを `CSV` 公開したデータから取得しています。`videosCsvUrl` やフォーム URL を更新する場合は、`doc/assets/js/config.js` および関連するファイルを編集してください。
 
