@@ -44,6 +44,55 @@
     });
   }
 
+  function normalizeUrl(rawUrl) {
+    if (!rawUrl) {
+      return '';
+    }
+    const trimmed = rawUrl.trim();
+    if (!trimmed) {
+      return '';
+    }
+    if (/^https?:\/\//i.test(trimmed)) {
+      return trimmed;
+    }
+    return `https://${trimmed}`;
+  }
+
+  function extractYoutubeId(rawUrl) {
+    if (!rawUrl) {
+      return '';
+    }
+
+    const normalized = normalizeUrl(rawUrl);
+    try {
+      const url = new URL(normalized);
+      const hostname = url.hostname.replace(/^www\./i, '').toLowerCase();
+
+      if (hostname === 'youtu.be') {
+        const id = url.pathname.replace(/^\//, '').split('/')[0];
+        if (id) return id;
+      }
+
+      if (hostname.endsWith('youtube.com')) {
+        if (url.pathname.startsWith('/embed/')) {
+          const id = url.pathname.split('/')[2];
+          if (id) return id;
+        }
+        const v = url.searchParams.get('v');
+        if (v) return v;
+      }
+    } catch (error) {
+      // noop
+    }
+
+    const fallbackMatch = rawUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+    if (fallbackMatch && fallbackMatch[1]) {
+      return fallbackMatch[1];
+    }
+
+    return '';
+  }
+
   function renderMessage(container, className, message, detail) {
     const safeDetail = detail ? `<br><small>${escapeHtml(detail)}</small>` : '';
     container.innerHTML = `<p class="${className}">${message}${safeDetail}</p>`;
@@ -157,7 +206,15 @@
       const alias = aliases[i].toLowerCase();
       const value = rowMap[alias];
       if (value !== undefined && value !== '') {
-        return value;
+        const trimmed = value.trim();
+        if (!trimmed) {
+          continue;
+        }
+        const lower = trimmed.toLowerCase();
+        if (lower === 'none' || lower === 'null' || lower === 'undefined' || lower === 'n/a' || lower === '-') {
+          continue;
+        }
+        return trimmed;
       }
     }
     return '';
@@ -180,11 +237,15 @@
       return null;
     }
 
+    const normalizedUrl = normalizeUrl(url);
     const categoryInfo = normalizeCategory(pickValueFromRow(rowMap, 'category'));
     const description = pickValueFromRow(rowMap, 'description');
     const publishedAt = pickValueFromRow(rowMap, 'publishedAt');
     const duration = pickValueFromRow(rowMap, 'duration');
-    const thumbnail = pickValueFromRow(rowMap, 'thumbnail') || 'assets/img/placeholder.png';
+    const providedThumbnail = pickValueFromRow(rowMap, 'thumbnail');
+    const youtubeId = extractYoutubeId(normalizedUrl);
+    const thumbnail =
+      providedThumbnail || (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : 'assets/img/placeholder.png');
     const idValue = pickValueFromRow(rowMap, 'id');
     const fallback = `${title}-${publishedAt}-${url}`
       .toLowerCase()
@@ -199,7 +260,7 @@
       categoryLabel: categoryInfo.label,
       publishedAt,
       duration,
-      url,
+      url: normalizedUrl,
       thumbnail,
     };
   }
