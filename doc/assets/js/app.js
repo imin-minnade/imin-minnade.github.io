@@ -19,6 +19,31 @@
     }
   }
 
+  async function loadFooter() {
+    const footer = document.querySelector('[data-footer-include]');
+    if (!footer) {
+      return;
+    }
+
+    const includePath = footer.getAttribute('data-footer-include') || 'partials/footer.html';
+
+    try {
+      const response = await fetch(includePath, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`Failed to load footer: ${response.status}`);
+      }
+      const html = await response.text();
+      const template = document.createElement('template');
+      template.innerHTML = html.trim();
+      const newFooter = template.content.firstElementChild;
+      if (newFooter) {
+        footer.replaceWith(newFooter);
+      }
+    } catch (error) {
+      console.error('フッター読み込みエラー', error);
+    }
+  }
+
   function formatDate(value) {
     if (value === undefined || value === null) {
       return '';
@@ -87,6 +112,7 @@
   window.App = {
     selectActiveNav,
     injectFooterYear,
+    loadFooter,
     formatDate,
     formatNumber,
     createElement,
@@ -94,7 +120,11 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     selectActiveNav();
-    injectFooterYear();
+    loadFooter()
+      .catch(() => {})
+      .finally(() => {
+        injectFooterYear();
+      });
   });
 })();
 
