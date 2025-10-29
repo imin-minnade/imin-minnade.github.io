@@ -30,7 +30,20 @@
     videos: [],
     isLoaded: false,
     loadError: null,
+    now: new Date(),
   };
+
+  function isPublished(item, referenceDate = state.now) {
+    const publishedTime = getDateValue(item);
+    if (!publishedTime) {
+      return false;
+    }
+
+    const publishedDate = new Date(publishedTime);
+    publishedDate.setHours(12, 0, 0, 0);
+
+    return referenceDate.getTime() >= publishedDate.getTime();
+  }
 
   function escapeHtml(value) {
     if (value === undefined || value === null) {
@@ -385,6 +398,7 @@
   }
 
   function renderLatest() {
+    state.now = new Date();
     const latestContainer = document.getElementById('latest');
     if (!latestContainer) {
       return;
@@ -405,7 +419,8 @@
       return;
     }
 
-    const items = sortVideos(state.videos, SORT_KEYS.PUBLISHED_DESC).slice(0, window.AppConfig?.latestLimit || 6);
+    const publishedVideos = state.videos.filter((item) => isPublished(item));
+    const items = sortVideos(publishedVideos, SORT_KEYS.PUBLISHED_DESC).slice(0, window.AppConfig?.latestLimit || 6);
     if (!items.length) {
       renderMessage(latestContainer, 'empty-state', '最新動画は準備中です。');
       return;
@@ -564,6 +579,7 @@
     };
 
     const applyFilters = () => {
+      state.now = new Date();
       if (!state.isLoaded) {
         renderLoading();
         return;
@@ -577,7 +593,8 @@
       const filtered = state.videos.filter((item) => {
         const matchTab = !currentTab || item.category === currentTab;
         const matchQuery = !currentQuery || item.title.toLowerCase().includes(currentQuery);
-        return matchTab && matchQuery;
+        const published = isPublished(item);
+        return matchTab && matchQuery && published;
       });
 
       if (!filtered.length) {
@@ -656,6 +673,7 @@
     loadVideoData()
       .catch(() => {})
       .finally(() => {
+        state.now = new Date();
         renderLatest();
         refreshContents();
       });
@@ -665,7 +683,8 @@
     categories: CATEGORY_LABELS,
     getLatest(limit) {
       const size = limit || window.AppConfig?.latestLimit || 6;
-      return sortVideos(state.videos, SORT_KEYS.PUBLISHED_DESC).slice(0, size);
+      const publishedVideos = state.videos.filter((video) => isPublished(video));
+      return sortVideos(publishedVideos, SORT_KEYS.PUBLISHED_DESC).slice(0, size);
     },
     get all() {
       return state.videos;
