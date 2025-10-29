@@ -18,6 +18,14 @@
     views: ['views', 'view_count', '閲覧数', '再生数', '視聴数', 'viewcount'],
   };
 
+  const SORT_KEYS = {
+    PUBLISHED_DESC: 'published-desc',
+    PUBLISHED_ASC: 'published-asc',
+    POPULAR: 'popular',
+  };
+
+  const DEFAULT_SORT = SORT_KEYS.PUBLISHED_DESC;
+
   const state = {
     videos: [],
     isLoaded: false,
@@ -110,6 +118,65 @@
     return number;
   }
 
+  function parseDateToTimestamp(value) {
+    if (!value) {
+      return null;
+    }
+    const raw = String(value).trim();
+    if (!raw) {
+      return null;
+    }
+
+    let date = new Date(raw);
+    if (Number.isNaN(date.getTime())) {
+      const match = raw.match(/^([0-9]{4})[\/-]?([0-9]{2})[\/-]?([0-9]{2})$/);
+      if (match) {
+        const [, year, month, day] = match;
+        date = new Date(Number(year), Number(month) - 1, Number(day));
+      }
+    }
+
+    const time = date.getTime();
+    return Number.isNaN(time) ? null : time;
+  }
+
+  function getDateValue(item) {
+    if (item.publishedTimestamp !== undefined && item.publishedTimestamp !== null) {
+      return item.publishedTimestamp;
+    }
+    const time = parseDateToTimestamp(item.publishedAt);
+    return time ?? 0;
+  }
+
+  function sortVideos(list, sortKey = DEFAULT_SORT) {
+    const sorted = [...list];
+
+    switch (sortKey) {
+      case SORT_KEYS.PUBLISHED_ASC:
+        sorted.sort((a, b) => getDateValue(a) - getDateValue(b));
+        break;
+      case SORT_KEYS.POPULAR:
+        sorted.sort((a, b) => {
+          const viewsDiff = (b.views ?? 0) - (a.views ?? 0);
+          if (viewsDiff !== 0) {
+            return viewsDiff;
+          }
+          const likesDiff = (b.likes ?? 0) - (a.likes ?? 0);
+          if (likesDiff !== 0) {
+            return likesDiff;
+          }
+          return getDateValue(b) - getDateValue(a);
+        });
+        break;
+      case SORT_KEYS.PUBLISHED_DESC:
+      default:
+        sorted.sort((a, b) => getDateValue(b) - getDateValue(a));
+        break;
+    }
+
+    return sorted;
+  }
+
   function renderMessage(container, className, message, detail) {
     const safeDetail = detail ? `<br><small>${escapeHtml(detail)}</small>` : '';
     container.innerHTML = `<p class="${className}">${message}${safeDetail}</p>`;
@@ -148,14 +215,6 @@
       }
       throw error;
     }
-  }
-
-  function sortDescByDate(list) {
-    return [...list].sort((a, b) => {
-      const aTime = new Date(a.publishedAt).getTime();
-      const bTime = new Date(b.publishedAt).getTime();
-      return (bTime || 0) - (aTime || 0);
-    });
   }
 
   function parseCsv(text) {
@@ -258,6 +317,7 @@
     const categoryInfo = normalizeCategory(pickValueFromRow(rowMap, 'category'));
     const description = pickValueFromRow(rowMap, 'description');
     const publishedAt = pickValueFromRow(rowMap, 'publishedAt');
+    const publishedTimestamp = parseDateToTimestamp(publishedAt);
     const duration = pickValueFromRow(rowMap, 'duration');
     const providedThumbnail = pickValueFromRow(rowMap, 'thumbnail');
     const youtubeId = extractYoutubeId(normalizedUrl);
@@ -278,6 +338,7 @@
       category: categoryInfo.key,
       categoryLabel: categoryInfo.label,
       publishedAt,
+      publishedTimestamp: publishedTimestamp ?? 0,
       duration,
       url: normalizedUrl,
       thumbnail,
@@ -300,7 +361,7 @@
       .map((rowMap) => createVideoFromRow(rowMap))
       .filter((item) => item);
 
-    return sortDescByDate(result);
+    return sortVideos(result, SORT_KEYS.PUBLISHED_DESC);
   }
 
   async function loadVideoData() {
@@ -344,7 +405,7 @@
       return;
     }
 
-    const items = state.videos.slice(0, window.AppConfig?.latestLimit || 6);
+    const items = sortVideos(state.videos, SORT_KEYS.PUBLISHED_DESC).slice(0, window.AppConfig?.latestLimit || 6);
     if (!items.length) {
       renderMessage(latestContainer, 'empty-state', '最新動画は準備中です。');
       return;
@@ -460,6 +521,7 @@
 
     let currentTab = document.querySelector('.tab-button.active')?.dataset.category || 'immigration';
     let currentQuery = '';
+    let currentSort = sortSelect?.value || DEFAULT_SORT;
 
     const setBadge = (text) => {
       if (badge) {
@@ -523,7 +585,8 @@
         return;
       }
 
-      renderList(filtered);
+      const sorted = sortVideos(filtered, currentSort);
+      renderList(sorted);
     };
 
     tabButtons.forEach((button) => {
@@ -550,7 +613,11 @@
     }
 
     if (sortSelect) {
-      sortSelect.addEventListener('change', applyFilters);
+      sortSelect.value = currentSort;
+      sortSelect.addEventListener('change', (event) => {
+        currentSort = event.target.value || DEFAULT_SORT;
+        applyFilters();
+      });
     }
 
     applyFilters();
@@ -598,7 +665,7 @@
     categories: CATEGORY_LABELS,
     getLatest(limit) {
       const size = limit || window.AppConfig?.latestLimit || 6;
-      return state.videos.slice(0, size);
+      return sortVideos(state.videos, SORT_KEYS.PUBLISHED_DESC).slice(0, size);
     },
     get all() {
       return state.videos;
