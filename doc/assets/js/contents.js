@@ -567,10 +567,11 @@
       const iframe = document.createElement('iframe');
       iframe.src = iframeUrl;
       iframe.width = '100%';
-      iframe.height = '900';
+      iframe.height = '1400';
       iframe.style.border = '0';
       iframe.loading = 'lazy';
       iframe.title = 'お問い合わせフォーム';
+      iframe.className = 'form-embed-frame';
       formContainer.appendChild(iframe);
     } else {
       const notice = document.createElement('p');
