@@ -59,9 +59,18 @@
                 <option value="popular">人気順</option>
               </select>
             </div>
+            <div class="field field--compact">
+              <label for="page-size-select">表示件数</label>
+              <select id="page-size-select" data-page-size>
+                <option value="30">30件</option>
+                <option value="50">50件</option>
+                <option value="100">100件</option>
+              </select>
+            </div>
           </div>
 
           <div id="cards" aria-live="polite"></div>
+          <div id="pagination" class="pagination" aria-label="ページネーション"></div>
         </section>
       </div>
     </main>

@@ -10,6 +10,7 @@
     title: ['title', 'name', 'タイトル'],
     description: ['description', '概要', 'details', '説明'],
     category: ['category', 'カテゴリ', 'カテゴリー', 'ジャンル'],
+    playlist: ['playlist', 'play_list1', 'play list', 'プレイリスト', 'プレイリスト1'],
     publishedAt: ['published_at', 'publishedat', 'published at', '公開日', '公開日時', 'date'],
     duration: ['duration', 'length', '再生時間', '時間'],
     url: ['url', 'リンク', 'video url', 'リンクurl', '動画url'],
@@ -25,6 +26,8 @@
   };
 
   const DEFAULT_SORT = SORT_KEYS.PUBLISHED_DESC;
+  const PAGE_SIZE_OPTIONS = [30, 50, 100];
+  const DEFAULT_PAGE_SIZE = PAGE_SIZE_OPTIONS[0];
 
   const state = {
     videos: [],
@@ -36,7 +39,7 @@
   function isPublished(item, referenceDate = state.now) {
     const publishedTime = getDateValue(item);
     if (!publishedTime) {
-      return false;
+      return true;
     }
 
     const publishedDate = new Date(publishedTime);
@@ -142,10 +145,15 @@
 
     let date = new Date(raw);
     if (Number.isNaN(date.getTime())) {
-      const match = raw.match(/^([0-9]{4})[\/-]?([0-9]{2})[\/-]?([0-9]{2})$/);
+      const normalized = raw.replace(/[\.年]/g, '-').replace(/[月]/g, '-').replace(/[日]/g, '').replace(/\s+/g, '-');
+      const match = normalized.match(/^([0-9]{4})[-/]?([0-9]{1,2})[-/]?([0-9]{1,2})$/);
       if (match) {
-        const [, year, month, day] = match;
-        date = new Date(Number(year), Number(month) - 1, Number(day));
+        const [, year, monthStr, dayStr] = match;
+        const month = Number(monthStr);
+        const day = Number(dayStr);
+        if (!Number.isNaN(month) && !Number.isNaN(day)) {
+          date = new Date(Number(year), month - 1, day);
+        }
       }
     }
 
@@ -279,7 +287,7 @@
     if (lower === 'immigration' || trimmed === '移民問題') {
       return { key: 'immigration', label: CATEGORY_LABELS.immigration };
     }
-    if (lower === 'special' || trimmed === '番外編') {
+    if (lower === 'special' || trimmed === '番外編' || trimmed === 'プレイリスト番外編') {
       return { key: 'special', label: CATEGORY_LABELS.special };
     }
     if (lower === 'music' || trimmed === '音楽') {
@@ -327,7 +335,8 @@
     }
 
     const normalizedUrl = normalizeUrl(url);
-    const categoryInfo = normalizeCategory(pickValueFromRow(rowMap, 'category'));
+    const categoryValue = pickValueFromRow(rowMap, 'category') || pickValueFromRow(rowMap, 'playlist');
+    const categoryInfo = normalizeCategory(categoryValue);
     const description = pickValueFromRow(rowMap, 'description');
     const publishedAt = pickValueFromRow(rowMap, 'publishedAt');
     const publishedTimestamp = parseDateToTimestamp(publishedAt);
@@ -533,10 +542,14 @@
     const tabButtons = document.querySelectorAll('.tab-button');
     const searchInput = document.querySelector('[data-search-input]');
     const sortSelect = document.querySelector('[data-sort-select]');
+    const pageSizeSelect = document.querySelector('[data-page-size]');
+    const paginationContainer = document.getElementById('pagination');
 
     let currentTab = document.querySelector('.tab-button.active')?.dataset.category || 'immigration';
     let currentQuery = '';
     let currentSort = sortSelect?.value || DEFAULT_SORT;
+    let currentPageSize = pageSizeSelect ? Number(pageSizeSelect.value) : DEFAULT_PAGE_SIZE;
+    let currentPage = 1;
 
     const setBadge = (text) => {
       if (badge) {
@@ -547,6 +560,7 @@
     const renderLoading = () => {
       renderMessage(cardsContainer, 'loading-state', '読み込み中...');
       setBadge('--');
+      togglePagination(false);
     };
 
     const renderError = () => {
@@ -557,11 +571,13 @@
         state.loadError?.message,
       );
       setBadge('0件');
+      togglePagination(false);
     };
 
     const renderEmpty = () => {
       renderMessage(cardsContainer, 'empty-state', '条件に合う動画が見つかりませんでした。');
       setBadge('0件');
+      togglePagination(false);
     };
 
     const renderList = (list) => {
@@ -575,7 +591,108 @@
       });
 
       cardsContainer.appendChild(grid);
-      setBadge(`${list.length}件`);
+    };
+
+    const togglePagination = (visible) => {
+      if (!paginationContainer) {
+        return;
+      }
+      if (visible) {
+        paginationContainer.classList.add('is-visible');
+      } else {
+        paginationContainer.classList.remove('is-visible');
+        paginationContainer.innerHTML = '';
+      }
+    };
+
+    const buildPageNumbers = (totalPages, page) => {
+      const pages = [];
+      const delta = 2;
+      const start = Math.max(1, page - delta);
+      const end = Math.min(totalPages, page + delta);
+
+      if (start > 1) {
+        pages.push(1);
+        if (start > 2) {
+          pages.push('ellipsis');
+        }
+      }
+
+      for (let i = start; i <= end; i += 1) {
+        pages.push(i);
+      }
+
+      if (end < totalPages) {
+        if (end < totalPages - 1) {
+          pages.push('ellipsis');
+        }
+        pages.push(totalPages);
+      }
+
+      return pages;
+    };
+
+    const renderPagination = (meta) => {
+      if (!paginationContainer) {
+        return;
+      }
+
+      const { totalItems, totalPages, page, pageSize, startIndex, endIndex } = meta;
+
+      if (totalPages <= 1 || totalItems === 0) {
+        togglePagination(false);
+        return;
+      }
+
+      togglePagination(true);
+      paginationContainer.innerHTML = '';
+
+      const info = window.App.createElement('div', {
+        className: 'pagination-info',
+        text: `全${window.App.formatNumber(totalItems)}件中 ${window.App.formatNumber(startIndex)}〜${window.App.formatNumber(endIndex)}件を表示`,
+      });
+
+      const nav = window.App.createElement('div', { className: 'pagination-nav' });
+
+      const createPageButton = (label, targetPage, options = {}) => {
+        const button = window.App.createElement('button', { text: label });
+        if (options.disabled) {
+          button.setAttribute('disabled', 'true');
+        }
+        if (options.active) {
+          button.classList.add('is-active');
+        }
+        button.addEventListener('click', () => {
+          if (targetPage === page || options.disabled) {
+            return;
+          }
+          currentPage = targetPage;
+          applyFilters();
+        });
+        return button;
+      };
+
+      const prevButton = createPageButton('前へ', Math.max(1, page - 1), { disabled: page === 1 });
+      nav.appendChild(prevButton);
+
+      const pageNumbers = buildPageNumbers(totalPages, page);
+      pageNumbers.forEach((value) => {
+        if (value === 'ellipsis') {
+          const ellipsis = window.App.createElement('span', {
+            className: 'pagination-ellipsis',
+            text: '…',
+          });
+          nav.appendChild(ellipsis);
+          return;
+        }
+        nav.appendChild(createPageButton(String(value), value, { active: value === page }));
+      });
+
+      const nextButton = createPageButton('次へ', Math.min(totalPages, page + 1), { disabled: page === totalPages });
+      nav.appendChild(nextButton);
+
+      paginationContainer.appendChild(info);
+      paginationContainer.appendChild(nav);
     };
 
     const applyFilters = () => {
@@ -603,7 +720,31 @@
       }
 
       const sorted = sortVideos(filtered, currentSort);
-      renderList(sorted);
+
+      if (!PAGE_SIZE_OPTIONS.includes(currentPageSize)) {
+        currentPageSize = DEFAULT_PAGE_SIZE;
+      }
+
+      const totalItems = sorted.length;
+      const totalPages = Math.max(1, Math.ceil(totalItems / currentPageSize));
+      if (currentPage > totalPages) {
+        currentPage = totalPages;
+      }
+
+      const startIndex = (currentPage - 1) * currentPageSize;
+      const endIndex = Math.min(totalItems, startIndex + currentPageSize);
+      const pageItems = sorted.slice(startIndex, endIndex);
+
+      renderList(pageItems);
+      setBadge(`${totalItems}件`);
+      renderPagination({
+        totalItems,
+        totalPages,
+        page: currentPage,
+        pageSize: currentPageSize,
+        startIndex: startIndex + 1,
+        endIndex,
+      });
     };
 
     tabButtons.forEach((button) => {
@@ -618,6 +759,7 @@
         button.classList.add('active');
         button.setAttribute('aria-selected', 'true');
         currentTab = button.dataset.category || 'immigration';
+        currentPage = 1;
         applyFilters();
       });
     });
@@ -625,6 +767,7 @@
     if (searchInput) {
       searchInput.addEventListener('input', (event) => {
         currentQuery = event.target.value.trim().toLowerCase();
+        currentPage = 1;
         applyFilters();
       });
     }
@@ -633,6 +776,21 @@
       sortSelect.value = currentSort;
       sortSelect.addEventListener('change', (event) => {
         currentSort = event.target.value || DEFAULT_SORT;
+        currentPage = 1;
+        applyFilters();
+      });
+    }
+
+    if (pageSizeSelect) {
+      if (!PAGE_SIZE_OPTIONS.includes(Number(pageSizeSelect.value))) {
+        pageSizeSelect.value = String(DEFAULT_PAGE_SIZE);
+      }
+      currentPageSize = Number(pageSizeSelect.value) || DEFAULT_PAGE_SIZE;
+
+      pageSizeSelect.addEventListener('change', (event) => {
+        const value = Number(event.target.value);
+        currentPageSize = PAGE_SIZE_OPTIONS.includes(value) ? value : DEFAULT_PAGE_SIZE;
+        currentPage = 1;
         applyFilters();
       });
     }
