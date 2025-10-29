@@ -76,6 +76,18 @@ header {
   letter-spacing: 0.04em;
 }
 
+.site-title a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.site-logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
 .main-nav {
   display: flex;
   gap: var(--spacing-sm);
