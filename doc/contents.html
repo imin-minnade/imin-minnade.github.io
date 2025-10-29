@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>みんなで考える移民問題｜コンテンツ一覧</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="assets/css/style.css" />
+  </head>
+  <body>
+    <header>
+      <div class="container site-header">
+        <div class="site-title">
+          <a href="index.html">みんなで考える移民問題</a>
+        </div>
+        <nav class="main-nav" aria-label="主なナビゲーション">
+          <a href="index.html">トップ</a>
+          <a href="contents.html">コンテンツ</a>
+          <a href="contact.html">お問い合わせ</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <div class="container">
+        <section aria-labelledby="contents-heading">
+          <div class="section-heading">
+            <h1 id="contents-heading">動画一覧</h1>
+            <span class="badge" data-count-badge>0件</span>
+          </div>
+
+          <div class="tab-list" role="tablist" aria-label="動画カテゴリ">
+            <button class="tab-button active" type="button" role="tab" aria-selected="true" data-category="immigration">
+              移民問題
+            </button>
+            <button class="tab-button" type="button" role="tab" aria-selected="false" data-category="special">
+              番外編
+            </button>
+            <button class="tab-button" type="button" role="tab" aria-selected="false" data-category="music">
+              音楽
+            </button>
+          </div>
+
+          <div class="filters" role="search">
+            <div class="field">
+              <label for="search-input">キーワード検索</label>
+              <input id="search-input" type="search" name="search" inputmode="search" placeholder="タイトルで検索" data-search-input />
+            </div>
+            <div class="field">
+              <label for="sort-select">並び順</label>
+              <select id="sort-select" data-sort-select>
+                <option value="published-desc">公開日（新しい順）</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="cards" aria-live="polite"></div>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <div class="container">© <span data-footer-year></span> みんなで考える移民問題</div>
+    </footer>
+
+    <script src="assets/js/config.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script src="assets/js/contents.js"></script>
+  </body>
+</html>
+
