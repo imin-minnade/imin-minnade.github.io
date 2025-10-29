@@ -19,16 +19,45 @@
     }
   }
 
-  function formatDate(dateString) {
-    const date = new Date(dateString);
-    if (Number.isNaN(date.getTime())) {
-      return dateString;
+  function formatDate(value) {
+    if (value === undefined || value === null) {
+      return '';
     }
-    return new Intl.DateTimeFormat('ja-JP', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    }).format(date);
+
+    const raw = String(value).trim();
+    if (!raw) {
+      return '';
+    }
+
+    let date = new Date(raw);
+
+    if (Number.isNaN(date.getTime())) {
+      const compactMatch = raw.match(/^([0-9]{4})([0-9]{2})([0-9]{2})$/);
+      if (compactMatch) {
+        const [, year, month, day] = compactMatch;
+        date = new Date(Number(year), Number(month) - 1, Number(day));
+      }
+    }
+
+    if (Number.isNaN(date.getTime())) {
+      return raw;
+    }
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}年${month}月${day}日`;
+  }
+
+  function formatNumber(value) {
+    if (value === undefined || value === null) {
+      return '';
+    }
+    const number = Number(value);
+    if (Number.isNaN(number)) {
+      return value;
+    }
+    return new Intl.NumberFormat('ja-JP').format(number);
   }
 
   function createElement(tag, options = {}) {
@@ -59,6 +88,7 @@
     selectActiveNav,
     injectFooterYear,
     formatDate,
+    formatNumber,
     createElement,
   };
 

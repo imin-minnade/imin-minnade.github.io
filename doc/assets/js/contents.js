@@ -10,10 +10,12 @@
     title: ['title', 'name', 'タイトル'],
     description: ['description', '概要', 'details', '説明'],
     category: ['category', 'カテゴリ', 'カテゴリー', 'ジャンル'],
-    publishedAt: ['published_at', 'publishedat', 'published at', '公開日', '公開日時'],
+    publishedAt: ['published_at', 'publishedat', 'published at', '公開日', '公開日時', 'date'],
     duration: ['duration', 'length', '再生時間', '時間'],
     url: ['url', 'リンク', 'video url', 'リンクurl', '動画url'],
     thumbnail: ['thumbnail', 'image', 'サムネイル', 'サムネイルurl'],
+    likes: ['likes', 'いいね', 'いいね数', '高評価', 'likecount'],
+    views: ['views', 'view_count', '閲覧数', '再生数', '視聴数', 'viewcount'],
   };
 
   const state = {
@@ -91,6 +93,21 @@
     }
 
     return '';
+  }
+
+  function parseNumber(value) {
+    if (!value) {
+      return null;
+    }
+    const cleaned = value.replace(/[^0-9]/g, '');
+    if (!cleaned) {
+      return null;
+    }
+    const number = Number(cleaned);
+    if (Number.isNaN(number)) {
+      return null;
+    }
+    return number;
   }
 
   function renderMessage(container, className, message, detail) {
@@ -246,6 +263,8 @@
     const youtubeId = extractYoutubeId(normalizedUrl);
     const thumbnail =
       providedThumbnail || (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : 'assets/img/placeholder.png');
+    const likes = parseNumber(pickValueFromRow(rowMap, 'likes'));
+    const views = parseNumber(pickValueFromRow(rowMap, 'views'));
     const idValue = pickValueFromRow(rowMap, 'id');
     const fallback = `${title}-${publishedAt}-${url}`
       .toLowerCase()
@@ -262,6 +281,8 @@
       duration,
       url: normalizedUrl,
       thumbnail,
+      likes,
+      views,
     };
   }
 
@@ -352,21 +373,54 @@
       },
     });
 
+    const thumbnailWrapper = window.App.createElement('div', {
+      className: 'card-thumbnail',
+      children: [thumb],
+    });
+
     const title = window.App.createElement('h3', {
       className: 'card-title',
       text: item.title,
-    });
-
-    const description = window.App.createElement('p', {
-      text: item.description || '説明は準備中です。',
     });
 
     const meta = window.App.createElement('div', {
       className: 'card-meta',
       children: [
         window.App.createElement('span', { text: item.categoryLabel || CATEGORY_LABELS[item.category] || 'その他' }),
-        window.App.createElement('span', { text: window.App.formatDate(item.publishedAt) }),
         item.duration ? window.App.createElement('span', { text: `再生時間 ${item.duration}` }) : null,
+      ],
+    });
+
+    const likeValue =
+      item.likes !== null && item.likes !== undefined
+        ? `${window.App.formatNumber(item.likes)}件`
+        : '—';
+    const viewValue =
+      item.views !== null && item.views !== undefined
+        ? `${window.App.formatNumber(item.views)}回`
+        : '—';
+    const publishedValueRaw = item.publishedAt ? window.App.formatDate(item.publishedAt) : '';
+    const publishedValue = publishedValueRaw && publishedValueRaw.trim() ? publishedValueRaw : '—';
+
+    const createStatItem = (icon, label, iconClass = '') =>
+      window.App.createElement('span', {
+        className: 'stat-item',
+        children: [
+          window.App.createElement('span', {
+            className: `icon ${iconClass}`.trim(),
+            text: icon,
+            attrs: { 'aria-hidden': 'true' },
+          }),
+          window.App.createElement('span', { className: 'stat-text', text: label }),
+        ],
+      });
+
+    const stats = window.App.createElement('div', {
+      className: 'card-stats',
+      children: [
+        createStatItem('❤', likeValue, 'icon-heart'),
+        createStatItem('👁', viewValue, 'icon-view'),
+        createStatItem('🗓', publishedValue, 'icon-calendar'),
       ],
     });
 
@@ -384,10 +438,10 @@
       ],
     });
 
-    card.appendChild(thumb);
+    card.appendChild(thumbnailWrapper);
     card.appendChild(title);
-    card.appendChild(description);
     card.appendChild(meta);
+    card.appendChild(stats);
     card.appendChild(actions);
 
     return card;
