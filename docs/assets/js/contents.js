@@ -39,7 +39,7 @@
   function isPublished(item, referenceDate = state.now) {
     const publishedTime = getDateValue(item);
     if (!publishedTime) {
-      return true;
+      return false;
     }
 
     const publishedDate = new Date(publishedTime);
@@ -140,6 +140,10 @@
     }
     const raw = String(value).trim();
     if (!raw) {
+      return null;
+    }
+
+    if (raw.replace(/[^0-9]/g, '').length !== 8) {
       return null;
     }
 
