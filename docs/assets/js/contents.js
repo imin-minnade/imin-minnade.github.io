@@ -19,6 +19,8 @@
     thumbnail: ['thumbnail', 'image', 'サムネイル', 'サムネイルurl'],
     likes: ['likes', 'いいね', 'いいね数', '高評価', 'likecount'],
     views: ['views', 'view_count', '閲覧数', '再生数', '視聴数', 'viewcount'],
+    shortLikes: ['likecountshort', 'likes_short', 'shortlikes', 'short_like', 'short likes'],
+    shortViews: ['viewcountshort', 'views_short', 'shortviews', 'short_view', 'short views'],
   };
 
   const SORT_KEYS = {
@@ -198,11 +200,11 @@
         break;
       case SORT_KEYS.POPULAR:
         sorted.sort((a, b) => {
-          const viewsDiff = (b.views ?? 0) - (a.views ?? 0);
+          const viewsDiff = (b.views ?? 0) + (b.shortViews ?? 0) - ((a.views ?? 0) + (a.shortViews ?? 0));
           if (viewsDiff !== 0) {
             return viewsDiff;
           }
-          const likesDiff = (b.likes ?? 0) - (a.likes ?? 0);
+          const likesDiff = (b.likes ?? 0) + (b.shortLikes ?? 0) - ((a.likes ?? 0) + (a.shortLikes ?? 0));
           if (likesDiff !== 0) {
             return likesDiff;
           }
@@ -371,6 +373,8 @@
     const likes = parseNumber(pickValueFromRow(rowMap, 'likes'));
     const views = parseNumber(pickValueFromRow(rowMap, 'views'));
     const shortUrl = normalizeHttpUrl(pickValueFromRow(rowMap, 'shortUrl'));
+    const shortLikes = parseNumber(pickValueFromRow(rowMap, 'shortLikes'));
+    const shortViews = parseNumber(pickValueFromRow(rowMap, 'shortViews'));
     const idValue = pickValueFromRow(rowMap, 'id');
     const fallback = `${title}-${publishedAt}-${url}`
       .toLowerCase()
@@ -391,6 +395,8 @@
       shortUrl,
       likes,
       views,
+      shortLikes,
+      shortViews,
     };
   }
 
@@ -493,22 +499,49 @@
       text: item.title,
     });
 
+    const categoryLabel = item.category || 'immigration';
     const meta = window.App.createElement('div', {
       className: 'card-meta',
       children: [
-        window.App.createElement('span', { text: item.categoryLabel || CATEGORY_LABELS[item.category] || 'その他' }),
+        window.App.createElement('span', {
+          className: `badge badge-${categoryLabel}`,
+          text: item.categoryLabel || CATEGORY_LABELS[item.category] || 'その他',
+        }),
+        window.App.createElement('span', { text: window.App.formatDate(item.publishedAt) }),
         item.duration ? window.App.createElement('span', { text: `再生時間 ${item.duration}` }) : null,
       ],
     });
 
     const likeValue =
       item.likes !== null && item.likes !== undefined
-        ? `${window.App.formatNumber(item.likes)}件`
-        : '—';
+        ? window.App.formatNumber(item.likes)
+        : null;
+    const likeShortValue =
+      item.shortLikes !== null && item.shortLikes !== undefined
+        ? window.App.formatNumber(item.shortLikes)
+        : null;
+    const combinedLikes = (() => {
+      const values = [likeValue, likeShortValue].filter(Boolean);
+      if (!values.length) {
+        return '—';
+      }
+      return `${values.join('+')}件`;
+    })();
     const viewValue =
       item.views !== null && item.views !== undefined
-        ? `${window.App.formatNumber(item.views)}回`
-        : '—';
+        ? window.App.formatNumber(item.views)
+        : null;
+    const viewShortValue =
+      item.shortViews !== null && item.shortViews !== undefined
+        ? window.App.formatNumber(item.shortViews)
+        : null;
+    const combinedViews = (() => {
+      const values = [viewValue, viewShortValue].filter(Boolean);
+      if (!values.length) {
+        return '—';
+      }
+      return `${values.join('+')}回`;
+    })();
     const publishedValueRaw = item.publishedAt ? window.App.formatDate(item.publishedAt) : '';
     const publishedValue = publishedValueRaw && publishedValueRaw.trim() ? publishedValueRaw : '—';
 
@@ -528,9 +561,8 @@
     const stats = window.App.createElement('div', {
       className: 'card-stats',
       children: [
-        createStatItem('❤', likeValue, 'icon-heart'),
-        createStatItem('👁', viewValue, 'icon-view'),
-        createStatItem('🗓', publishedValue, 'icon-calendar'),
+        createStatItem('❤', combinedLikes, 'icon-heart'),
+        createStatItem('👁', combinedViews, 'icon-view'),
       ],
     });
 
