@@ -3,6 +3,7 @@
     immigration: '移民問題',
     special: '番外編',
     music: '音楽',
+    media: 'マスコミ',
   };
 
   const HEADER_ALIASES = {
@@ -14,6 +15,7 @@
     publishedAt: ['published_at', 'publishedat', 'published at', '公開日', '公開日時', 'date'],
     duration: ['duration', 'length', '再生時間', '時間'],
     url: ['url', 'リンク', 'video url', 'リンクurl', '動画url'],
+    shortUrl: ['short_url', 'shorturl', 'short link', 'ショートurl'],
     thumbnail: ['thumbnail', 'image', 'サムネイル', 'サムネイルurl'],
     likes: ['likes', 'いいね', 'いいね数', '高評価', 'likecount'],
     views: ['views', 'view_count', '閲覧数', '再生数', '視聴数', 'viewcount'],
@@ -68,6 +70,20 @@
           return char;
       }
     });
+  }
+
+  function normalizeHttpUrl(rawUrl) {
+    if (!rawUrl) {
+      return '';
+    }
+    const trimmed = rawUrl.trim();
+    if (!trimmed) {
+      return '';
+    }
+    if (/^https?:\/\//i.test(trimmed)) {
+      return trimmed;
+    }
+    return '';
   }
 
   function normalizeUrl(rawUrl) {
@@ -297,6 +313,9 @@
     if (lower === 'music' || trimmed === '音楽') {
       return { key: 'music', label: CATEGORY_LABELS.music };
     }
+    if (lower === 'media' || lower === 'massmedia' || trimmed === 'マスコミ' || trimmed === 'メディア') {
+      return { key: 'media', label: CATEGORY_LABELS.media };
+    }
 
     return { key: 'immigration', label: CATEGORY_LABELS.immigration };
   }
@@ -351,6 +370,7 @@
       providedThumbnail || (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : 'assets/img/placeholder.png');
     const likes = parseNumber(pickValueFromRow(rowMap, 'likes'));
     const views = parseNumber(pickValueFromRow(rowMap, 'views'));
+    const shortUrl = normalizeHttpUrl(pickValueFromRow(rowMap, 'shortUrl'));
     const idValue = pickValueFromRow(rowMap, 'id');
     const fallback = `${title}-${publishedAt}-${url}`
       .toLowerCase()
@@ -368,6 +388,7 @@
       duration,
       url: normalizedUrl,
       thumbnail,
+      shortUrl,
       likes,
       views,
     };
@@ -513,18 +534,35 @@
       ],
     });
 
-    const actions = window.App.createElement('div', {
-      className: 'card-actions',
-      children: [
+    const actionButtons = [
+      window.App.createElement('a', {
+        text: '視聴する',
+        className: 'action-primary',
+        attrs: {
+          href: item.url,
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        },
+      }),
+    ];
+
+    if (item.shortUrl) {
+      actionButtons.push(
         window.App.createElement('a', {
-          text: '視聴する',
+          text: 'ショート',
+          className: 'action-secondary',
           attrs: {
-            href: item.url,
+            href: item.shortUrl,
             target: '_blank',
             rel: 'noopener noreferrer',
           },
         }),
-      ],
+      );
+    }
+
+    const actions = window.App.createElement('div', {
+      className: 'card-actions',
+      children: actionButtons,
     });
 
     card.appendChild(thumbnailWrapper);

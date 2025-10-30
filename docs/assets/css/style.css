@@ -293,20 +293,47 @@ main {
   margin-top: auto;
   display: flex;
   justify-content: flex-start;
+  gap: 0.5rem;
 }
 
 .card-actions a {
   padding: 0.5rem 1rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
-  font-weight: 500;
+  background: #fff;
+  color: var(--color-text);
+  font-weight: 600;
   transition: all 0.2s ease;
 }
 
 .card-actions a:hover,
 .card-actions a:focus {
+  transform: translateY(-1px);
+}
+
+.card-actions .action-primary {
   border-color: var(--color-accent);
+  background: rgba(198, 40, 40, 0.15);
   color: var(--color-accent);
+}
+
+.card-actions .action-primary:hover,
+.card-actions .action-primary:focus {
+  background: rgba(198, 40, 40, 0.22);
+  color: var(--color-accent);
+}
+
+.card-actions .action-secondary {
+  border-color: #bfdbfe;
+  background: rgba(59, 130, 246, 0.15);
+  color: #1d4ed8;
+}
+
+.card-actions .action-secondary:hover,
+.card-actions .action-secondary:focus {
+  border-color: #2563eb;
+  background: rgba(59, 130, 246, 0.22);
+  color: #1d4ed8;
 }
 
 .badge {
