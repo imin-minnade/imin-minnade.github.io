@@ -323,6 +323,22 @@
     if (stats) {
       card.appendChild(stats);
     }
+    card.appendChild(
+      window.App.createElement('div', {
+        className: 'x-card-actions',
+        children: [
+          window.App.createElement('a', {
+            text: '投稿を見る',
+            className: 'action-secondary',
+            attrs: {
+              href: post.url,
+              target: '_blank',
+              rel: 'noopener noreferrer',
+            },
+          }),
+        ],
+      }),
+    );
 
     return card;
   }
