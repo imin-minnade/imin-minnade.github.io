@@ -381,6 +381,10 @@
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
 
+    if (!normalizedUrl || !shortUrl) {
+      return null;
+    }
+
     return {
       id: idValue || fallback || `video-${Math.random().toString(36).slice(2)}`,
       title,
