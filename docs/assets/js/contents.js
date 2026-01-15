@@ -381,7 +381,7 @@
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
 
-    if (!normalizedUrl || !shortUrl) {
+    if (!normalizedUrl) {
       return null;
     }
 
