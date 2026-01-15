@@ -122,6 +122,10 @@
           const id = url.pathname.split('/')[2];
           if (id) return id;
         }
+        if (url.pathname.startsWith('/shorts/')) {
+          const id = url.pathname.split('/')[2];
+          if (id) return id;
+        }
         const v = url.searchParams.get('v');
         if (v) return v;
       }
@@ -129,7 +133,7 @@
       // noop
     }
 
-    const fallbackMatch = rawUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+    const fallbackMatch = rawUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
     if (fallbackMatch && fallbackMatch[1]) {
       return fallbackMatch[1];
     }
@@ -355,11 +359,15 @@
   function createVideoFromRow(rowMap) {
     const title = pickValueFromRow(rowMap, 'title');
     const url = pickValueFromRow(rowMap, 'url');
-    if (!title || !url) {
+    const shortUrlRaw = pickValueFromRow(rowMap, 'shortUrl');
+    if (!title || (!url && !shortUrlRaw)) {
       return null;
     }
 
     const normalizedUrl = normalizeUrl(url);
+    const normalizedShortUrl = normalizeUrl(shortUrlRaw) || normalizeHttpUrl(shortUrlRaw);
+    const hasOriginalUrl = Boolean(normalizedUrl);
+    const primaryUrl = normalizedUrl || normalizedShortUrl;
     const categoryValue = pickValueFromRow(rowMap, 'category') || pickValueFromRow(rowMap, 'playlist');
     const categoryInfo = normalizeCategory(categoryValue);
     const description = pickValueFromRow(rowMap, 'description');
@@ -367,12 +375,12 @@
     const publishedTimestamp = parseDateToTimestamp(publishedAt);
     const duration = pickValueFromRow(rowMap, 'duration');
     const providedThumbnail = pickValueFromRow(rowMap, 'thumbnail');
-    const youtubeId = extractYoutubeId(normalizedUrl);
+    const youtubeId = extractYoutubeId(primaryUrl);
     const thumbnail =
       providedThumbnail || (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : 'assets/img/placeholder.png');
     const likes = parseNumber(pickValueFromRow(rowMap, 'likes'));
     const views = parseNumber(pickValueFromRow(rowMap, 'views'));
-    const shortUrl = normalizeHttpUrl(pickValueFromRow(rowMap, 'shortUrl'));
+    const shortUrl = normalizedShortUrl;
     const shortLikes = parseNumber(pickValueFromRow(rowMap, 'shortLikes'));
     const shortViews = parseNumber(pickValueFromRow(rowMap, 'shortViews'));
     const idValue = pickValueFromRow(rowMap, 'id');
@@ -381,7 +389,7 @@
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
 
-    if (!normalizedUrl) {
+    if (!primaryUrl) {
       return null;
     }
 
@@ -394,7 +402,8 @@
       publishedAt,
       publishedTimestamp: publishedTimestamp ?? 0,
       duration,
-      url: normalizedUrl,
+      url: primaryUrl,
+      hasOriginalUrl,
       thumbnail,
       shortUrl,
       likes,
@@ -570,30 +579,36 @@
       ],
     });
 
-    const actionButtons = [
-      window.App.createElement('a', {
-        text: '視聴する',
-        className: 'action-primary',
-        attrs: {
-          href: item.url,
-          target: '_blank',
-          rel: 'noopener noreferrer',
-        },
-      }),
-    ];
-
-    if (item.shortUrl) {
+    const actionButtons = [];
+    if (item.hasOriginalUrl && item.url) {
       actionButtons.push(
         window.App.createElement('a', {
-          text: 'ショート',
-          className: 'action-secondary',
+          text: '視聴する',
+          className: 'action-primary',
           attrs: {
-            href: item.shortUrl,
+            href: item.url,
             target: '_blank',
             rel: 'noopener noreferrer',
           },
         }),
       );
+    }
+
+    if (item.shortUrl) {
+      const isDuplicate = item.url && item.shortUrl === item.url;
+      if (!item.hasOriginalUrl || !isDuplicate) {
+        actionButtons.push(
+          window.App.createElement('a', {
+            text: 'ショート',
+            className: 'action-secondary',
+            attrs: {
+              href: item.shortUrl,
+              target: '_blank',
+              rel: 'noopener noreferrer',
+            },
+          }),
+        );
+      }
     }
 
     const actions = window.App.createElement('div', {
