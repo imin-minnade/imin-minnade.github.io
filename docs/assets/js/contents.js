@@ -141,6 +141,19 @@
     return '';
   }
 
+  function isValidHttpUrl(rawUrl) {
+    if (!rawUrl) return false;
+    const candidate = normalizeUrl(rawUrl);
+    try {
+      const url = new URL(candidate);
+      const isHttp = url.protocol === 'https:' || url.protocol === 'http:';
+      const hasDomain = url.hostname && url.hostname.includes('.');
+      return isHttp && hasDomain;
+    } catch {
+      return false;
+    }
+  }
+
   function parseNumber(value) {
     if (!value) {
       return null;
@@ -364,9 +377,12 @@
       return null;
     }
 
-    const normalizedUrl = normalizeUrl(url);
-    const normalizedShortUrl = normalizeUrl(shortUrlRaw) || normalizeHttpUrl(shortUrlRaw);
-    const hasOriginalUrl = Boolean(normalizedUrl);
+    const hasOriginalUrl = isValidHttpUrl(url);
+    const normalizedUrl = hasOriginalUrl ? normalizeUrl(url) : '';
+
+    const hasShortUrl = isValidHttpUrl(shortUrlRaw);
+    const normalizedShortUrl = hasShortUrl ? normalizeUrl(shortUrlRaw) : '';
+
     const primaryUrl = normalizedUrl || normalizedShortUrl;
     const categoryValue = pickValueFromRow(rowMap, 'category') || pickValueFromRow(rowMap, 'playlist');
     const categoryInfo = normalizeCategory(categoryValue);
@@ -404,6 +420,7 @@
       duration,
       url: primaryUrl,
       hasOriginalUrl,
+      hasShortUrl,
       thumbnail,
       shortUrl,
       likes,
@@ -594,7 +611,7 @@
       );
     }
 
-    if (item.shortUrl) {
+    if (item.shortUrl && item.hasShortUrl) {
       const isDuplicate = item.url && item.shortUrl === item.url;
       if (!item.hasOriginalUrl || !isDuplicate) {
         actionButtons.push(
